@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import '@/App.css';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
-import { supabase } from '@/lib/supabase';
+import axios from 'axios';
 import DishCard from '@/components/DishCard';
 import ContributionForm from '@/components/ContributionForm';
 import AdminPage from '@/pages/AdminPage';
 import { UtensilsCrossed, RefreshCw, ChevronDown } from 'lucide-react';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 function HomePage() {
   const [dishes, setDishes] = useState([]);
@@ -18,23 +20,16 @@ function HomePage() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
 
-    const { data: dishData } = await supabase
-      .from('dishes')
-      .select('*')
-      .order('created_at', { ascending: true });
+    try {
+      const [enrichedRes, rawRes] = await Promise.all([
+        axios.get(`${API}/dishes/enriched`),
+        axios.get(`${API}/dishes`),
+      ]);
 
-    const { data: contribData } = await supabase
-      .from('contributions')
-      .select('*, participant:participants(*)');
+      const enriched = enrichedRes.data;
+      setRawDishes(rawRes.data);
 
-    if (dishData) {
-      setRawDishes(dishData);
-      const enriched = dishData.map((dish) => {
-        const contributions = (contribData ?? []).filter((c) => c.dish_id === dish.id);
-        const total = contributions.reduce((sum, c) => sum + c.quantity_people, 0);
-        return { ...dish, contributions, total_contributed: total };
-      });
-      const sorted = enriched.sort((a, b) => {
+      const sorted = [...enriched].sort((a, b) => {
         const aRem = a.target_people - a.total_contributed;
         const bRem = b.target_people - b.total_contributed;
         const aFull = aRem <= 0;
@@ -44,6 +39,8 @@ function HomePage() {
         return bRem - aRem;
       });
       setDishes(sorted);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
     }
 
     setLoading(false);

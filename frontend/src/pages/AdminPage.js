@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import axios from 'axios';
 import { Lock, Users, Utensils, TrendingUp, ArrowLeft, Download } from 'lucide-react';
 
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const ADMIN_PASSWORD = 'potluck2024';
 
 export default function AdminPage() {
@@ -15,33 +16,16 @@ export default function AdminPage() {
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-
-    const { data: pData } = await supabase
-      .from('participants')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    const { data: dishData } = await supabase
-      .from('dishes')
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    const { data: contribData } = await supabase
-      .from('contributions')
-      .select('*, participant:participants(*)')
-      .order('created_at', { ascending: false });
-
-    if (pData) setParticipants(pData);
-
-    if (dishData) {
-      const enriched = dishData.map((dish) => {
-        const contributions = (contribData ?? []).filter((c) => c.dish_id === dish.id);
-        const total = contributions.reduce((sum, c) => sum + c.quantity_people, 0);
-        return { ...dish, contributions, total_contributed: total };
-      });
-      setDishes(enriched);
+    try {
+      const [pRes, dRes] = await Promise.all([
+        axios.get(`${API}/participants`),
+        axios.get(`${API}/contributions/all`),
+      ]);
+      setParticipants(pRes.data);
+      setDishes(dRes.data);
+    } catch (err) {
+      console.error('Failed to fetch admin data:', err);
     }
-
     setLoading(false);
   }, []);
 
@@ -71,7 +55,7 @@ export default function AdminPage() {
           String(c.participant?.kids_above_6 ?? ''),
           dish.name,
           String(c.quantity_people),
-          new Date(c.created_at).toLocaleString(),
+          c.created_at ? new Date(c.created_at).toLocaleString() : '',
         ]);
       });
     });
@@ -251,12 +235,8 @@ export default function AdminPage() {
                           <th className="text-left px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">
                             Contributors
                           </th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600">
-                            Progress
-                          </th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600">
-                            Status
-                          </th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600">Progress</th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600">Status</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -271,17 +251,13 @@ export default function AdminPage() {
                               <td className="px-5 py-3.5">
                                 <div className="font-medium text-gray-900">{dish.name}</div>
                                 {dish.description && (
-                                  <div className="text-xs text-gray-400 mt-0.5">
-                                    {dish.description}
-                                  </div>
+                                  <div className="text-xs text-gray-400 mt-0.5">{dish.description}</div>
                                 )}
                               </td>
                               <td className="px-5 py-3.5 hidden sm:table-cell">
                                 <div className="text-gray-500 text-xs">
                                   {dish.contributions
-                                    .map(
-                                      (c) => `${c.participant?.name} (${c.quantity_people})`
-                                    )
+                                    .map((c) => `${c.participant?.name} (${c.quantity_people})`)
                                     .join(', ') || '\u2014'}
                                 </div>
                               </td>
@@ -289,9 +265,7 @@ export default function AdminPage() {
                                 <div className="flex items-center justify-end gap-2">
                                   <div className="w-20 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                                     <div
-                                      className={`h-full rounded-full ${
-                                        isFull ? 'bg-emerald-500' : 'bg-amber-400'
-                                      }`}
+                                      className={`h-full rounded-full ${isFull ? 'bg-emerald-500' : 'bg-amber-400'}`}
                                       style={{ width: `${pct}%` }}
                                     />
                                   </div>
@@ -334,27 +308,17 @@ export default function AdminPage() {
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
                           <th className="text-left px-5 py-3 font-semibold text-gray-600">Name</th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600">
-                            Total People
-                          </th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600">
-                            Kids (6+)
-                          </th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">
-                            Submitted
-                          </th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600">Total People</th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600">Kids (6+)</th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">Submitted</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
                         {participants.map((p) => (
                           <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                             <td className="px-5 py-3.5 font-medium text-gray-900">{p.name}</td>
-                            <td className="px-5 py-3.5 text-right text-gray-600">
-                              {p.total_people}
-                            </td>
-                            <td className="px-5 py-3.5 text-right text-gray-600">
-                              {p.kids_above_6}
-                            </td>
+                            <td className="px-5 py-3.5 text-right text-gray-600">{p.total_people}</td>
+                            <td className="px-5 py-3.5 text-right text-gray-600">{p.kids_above_6}</td>
                             <td className="px-5 py-3.5 text-right text-gray-400 text-xs hidden sm:table-cell">
                               {new Date(p.created_at).toLocaleString()}
                             </td>
@@ -364,12 +328,8 @@ export default function AdminPage() {
                       <tfoot className="border-t border-gray-100">
                         <tr className="bg-gray-50">
                           <td className="px-5 py-3 font-semibold text-gray-700">Total</td>
-                          <td className="px-5 py-3 text-right font-bold text-gray-900">
-                            {totalPeople}
-                          </td>
-                          <td className="px-5 py-3 text-right font-bold text-gray-900">
-                            {totalKids}
-                          </td>
+                          <td className="px-5 py-3 text-right font-bold text-gray-900">{totalPeople}</td>
+                          <td className="px-5 py-3 text-right font-bold text-gray-900">{totalKids}</td>
                           <td className="hidden sm:table-cell" />
                         </tr>
                       </tfoot>
@@ -391,16 +351,10 @@ export default function AdminPage() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
-                          <th className="text-left px-5 py-3 font-semibold text-gray-600">
-                            Participant
-                          </th>
+                          <th className="text-left px-5 py-3 font-semibold text-gray-600">Participant</th>
                           <th className="text-left px-5 py-3 font-semibold text-gray-600">Dish</th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600">
-                            Cooking For
-                          </th>
-                          <th className="text-right px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">
-                            Time
-                          </th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600">Cooking For</th>
+                          <th className="text-right px-5 py-3 font-semibold text-gray-600 hidden sm:table-cell">Time</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -412,15 +366,12 @@ export default function AdminPage() {
                                   {c.participant?.name ?? '\u2014'}
                                 </div>
                                 <div className="text-xs text-gray-400">
-                                  {c.participant?.total_people} people, {c.participant?.kids_above_6}{' '}
-                                  kids
+                                  {c.participant?.total_people} people, {c.participant?.kids_above_6} kids
                                 </div>
                               </td>
                               <td className="px-5 py-3.5 text-gray-700">{dish.name}</td>
                               <td className="px-5 py-3.5 text-right">
-                                <span className="font-semibold text-gray-900">
-                                  {c.quantity_people}
-                                </span>
+                                <span className="font-semibold text-gray-900">{c.quantity_people}</span>
                                 <span className="text-gray-400 text-xs ml-1">people</span>
                               </td>
                               <td className="px-5 py-3.5 text-right text-gray-400 text-xs hidden sm:table-cell">

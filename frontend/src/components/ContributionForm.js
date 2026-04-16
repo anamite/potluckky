@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import axios from 'axios';
 import { ChefHat, Plus, Users, Baby, Utensils, Check, Trash2 } from 'lucide-react';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const createEmptyDishEntry = () => ({
   id: Date.now() + Math.random(),
@@ -22,12 +24,10 @@ export default function ContributionForm({ dishes, onSuccess }) {
 
   const handleNumberChange = (setter) => (e) => {
     const val = e.target.value;
-    // Allow empty string so user can fully clear the field
     if (val === '') {
       setter('');
       return;
     }
-    // Only accept valid non-negative integers
     const num = parseInt(val, 10);
     if (!isNaN(num) && num >= 0) {
       setter(String(num));
@@ -84,76 +84,29 @@ export default function ContributionForm({ dishes, onSuccess }) {
 
     setLoading(true);
 
-    // Create participant
-    const { data: participant, error: pErr } = await supabase
-      .from('participants')
-      .insert({
+    try {
+      const payload = {
         name: name.trim(),
         total_people: parsedTotalPeople,
         kids_above_6: parsedKidsAbove6,
-      })
-      .select()
-      .single();
+        dish_entries: dishEntries.map((entry) => ({
+          dish_choice: entry.dishChoice,
+          selected_dish_id: entry.selectedDishId,
+          new_dish_name: entry.newDishName,
+          new_dish_description: entry.newDishDescription,
+          quantity_people: parseInt(entry.quantityPeople, 10) || 1,
+        })),
+      };
 
-    if (pErr || !participant) {
-      setError('Failed to save your info. Please try again.');
-      setLoading(false);
-      return;
+      await axios.post(`${API}/contributions/submit`, payload);
+      setSubmitted(true);
+      onSuccess();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to save contribution. Please try again.';
+      setError(msg);
     }
 
-    // Process each dish entry
-    for (const entry of dishEntries) {
-      let dishId = entry.selectedDishId;
-
-      if (entry.dishChoice === 'new') {
-        const normalizedName = entry.newDishName.trim();
-        const { data: existing } = await supabase
-          .from('dishes')
-          .select('id')
-          .ilike('name', normalizedName)
-          .maybeSingle();
-
-        if (existing) {
-          dishId = existing.id;
-        } else {
-          const { data: newDish, error: dErr } = await supabase
-            .from('dishes')
-            .insert({
-              name: normalizedName,
-              description: entry.newDishDescription.trim(),
-              target_people: 30,
-            })
-            .select()
-            .single();
-
-          if (dErr || !newDish) {
-            setError('Failed to create dish. It may already exist.');
-            setLoading(false);
-            return;
-          }
-          dishId = newDish.id;
-        }
-      }
-
-      const qty = parseInt(entry.quantityPeople, 10) || 1;
-      const { error: cErr } = await supabase
-        .from('contributions')
-        .insert({
-          participant_id: participant.id,
-          dish_id: dishId,
-          quantity_people: qty,
-        });
-
-      if (cErr) {
-        setError('Failed to save contribution. Please try again.');
-        setLoading(false);
-        return;
-      }
-    }
-
-    setSubmitted(true);
     setLoading(false);
-    onSuccess();
   };
 
   if (submitted) {
