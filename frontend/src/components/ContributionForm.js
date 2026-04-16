@@ -15,7 +15,7 @@ const createEmptyDishEntry = () => ({
 
 export default function ContributionForm({ dishes, onSuccess }) {
   const [name, setName] = useState('');
-  const [totalPeople, setTotalPeople] = useState('1');
+  const [totalPeople, setTotalPeople] = useState('0');
   const [kidsAbove6, setKidsAbove6] = useState('0');
   const [dishEntries, setDishEntries] = useState([createEmptyDishEntry()]);
   const [loading, setLoading] = useState(false);
@@ -60,7 +60,7 @@ export default function ContributionForm({ dishes, onSuccess }) {
       return;
     }
 
-    const parsedTotalPeople = parseInt(totalPeople, 10) || 1;
+    const parsedTotalPeople = parseInt(totalPeople, 10) || 0;
     const parsedKidsAbove6 = parseInt(kidsAbove6, 10) || 0;
 
     // Validate all dish entries
@@ -127,7 +127,7 @@ export default function ContributionForm({ dishes, onSuccess }) {
           onClick={() => {
             setSubmitted(false);
             setName('');
-            setTotalPeople('1');
+            setTotalPeople('0');
             setKidsAbove6('0');
             setDishEntries([createEmptyDishEntry()]);
           }}
@@ -163,6 +163,7 @@ export default function ContributionForm({ dishes, onSuccess }) {
           <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
             Your Info
           </h3>
+          <p className="text-xs text-gray-400 -mt-2">Friends should register separately</p>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Your Name</label>
             <input
@@ -179,7 +180,7 @@ export default function ContributionForm({ dishes, onSuccess }) {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">
                 <span className="flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" /> Total People
+                  <Users className="w-3.5 h-3.5" /> Family Members
                 </span>
               </label>
               <input
@@ -189,7 +190,7 @@ export default function ContributionForm({ dishes, onSuccess }) {
                 pattern="[0-9]*"
                 value={totalPeople}
                 onChange={handleNumberChange(setTotalPeople)}
-                placeholder="1"
+                placeholder="0"
                 className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all"
               />
             </div>

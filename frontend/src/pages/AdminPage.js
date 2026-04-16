@@ -45,7 +45,7 @@ export default function AdminPage() {
 
   const exportCSV = () => {
     const rows = [
-      ['Participant', 'Total People', 'Kids Above 6', 'Dish', 'Cooking For', 'Submitted At'],
+      ['Participant', 'Family Members', 'Kids Above 6', 'Dish', 'Cooking For', 'Submitted At'],
     ];
     dishes.forEach((dish) => {
       dish.contributions.forEach((c) => {
@@ -174,7 +174,7 @@ export default function AdminPage() {
             <div data-testid="admin-stat-total-people" className="text-2xl font-bold text-blue-500">
               {totalPeople}
             </div>
-            <div className="text-xs text-gray-500 mt-0.5">Total People</div>
+            <div className="text-xs text-gray-500 mt-0.5">Family Members</div>
           </div>
           <div className="bg-white rounded-2xl border border-gray-200 p-4 text-center">
             <div data-testid="admin-stat-covered" className="text-2xl font-bold text-amber-500">
@@ -366,7 +366,7 @@ export default function AdminPage() {
                                   {c.participant?.name ?? '\u2014'}
                                 </div>
                                 <div className="text-xs text-gray-400">
-                                  {c.participant?.total_people} people, {c.participant?.kids_above_6} kids
+                                  {c.participant?.total_people} family, {c.participant?.kids_above_6} kids
                                 </div>
                               </td>
                               <td className="px-5 py-3.5 text-gray-700">{dish.name}</td>
